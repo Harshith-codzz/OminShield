@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # OmniShield AI — Extended Detection & Response Platform
 
 > Production-ready 4-tier XDR platform processing 1000+ security logs/second with MITRE ATT&CK mapping, River ML anomaly detection, Gemini AI playbooks, and a React SOC dashboard.
@@ -193,3 +194,6 @@ omnishield-ai/
 │           ├── PlaybookPanel.jsx
 │           └── LiveIndicator.jsx
 ```
+=======
+# OminShield
+>>>>>>> 918c094ad133bc71dbb1e65b35e72c86a7afb2bb
