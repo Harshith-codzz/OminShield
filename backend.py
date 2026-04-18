@@ -10,25 +10,60 @@ import sys
 import time
 from typing import Optional
 
+# ── uvloop (optional — Linux/Mac only) ──────────────────────────────────────
 try:
     import uvloop
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    uvloop.install()
 except ImportError:
-    pass  # uvloop not available on this platform (e.g. Vercel build phase on Windows)
+    uvloop = None  # type: ignore[assignment]
 
-import orjson
+# ── orjson with stdlib json fallback ────────────────────────────────────────
+try:
+    import orjson
+    def _dumps(obj) -> bytes:
+        return orjson.dumps(obj)
+    def _loads(data):
+        return orjson.loads(data)
+except ImportError:
+    import json as _json_stdlib
+    def _dumps(obj) -> bytes:  # type: ignore[misc]
+        return _json_stdlib.dumps(obj).encode()
+    def _loads(data):  # type: ignore[misc]
+        return _json_stdlib.loads(data)
+
+# ── Core web framework (hard requirement) ───────────────────────────────────
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from redis.asyncio import Redis as aioredis
-from redis.exceptions import ResponseError
 
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+# ── Redis (optional — degraded mode if unavailable) ─────────────────────────
+try:
+    from redis.asyncio import Redis as aioredis
+    from redis.exceptions import ResponseError
+except ImportError:
+    aioredis = None  # type: ignore[assignment,misc]
+    ResponseError = Exception  # type: ignore[assignment,misc]
 
+# ── Google Generative AI (optional) ─────────────────────────────────────────
+try:
+    import google.generativeai as genai
+    from google.generativeai.types import HarmCategory, HarmBlockThreshold
+    _GENAI_AVAILABLE = True
+except ImportError:
+    genai = None  # type: ignore[assignment]
+    HarmCategory = None  # type: ignore[assignment]
+    HarmBlockThreshold = None  # type: ignore[assignment]
+    _GENAI_AVAILABLE = False
+
+# ── River ML (optional) ──────────────────────────────────────────────────────
 # SPEC: correct path is river.feature_extraction.FeatureHasher (NOT river.preprocessing)
-from river import anomaly, compose, feature_extraction, preprocessing
+try:
+    from river import anomaly, compose, feature_extraction, preprocessing
+    _RIVER_AVAILABLE = True
+except ImportError:
+    anomaly = compose = feature_extraction = preprocessing = None  # type: ignore[assignment]
+    _RIVER_AVAILABLE = False
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 REDIS_URL      = os.getenv("REDIS_URL",      "redis://127.0.0.1:6379")
@@ -91,11 +126,14 @@ MITRE_PLAYBOOKS = {
 
 # ─── ML model (module-level singleton) ───────────────────────────────────────
 # SPEC: feature_extraction.FeatureHasher with missing_values="zeros" (exact spec requirement)
-ml_model = compose.Pipeline(
-    ("hasher",  feature_extraction.FeatureHasher(n_features=1024, missing_values="zeros")),
-    ("scaler",  preprocessing.StandardScaler()),
-    ("anomaly", anomaly.HalfSpaceTrees(n_trees=25, height=8, window_size=256, seed=42)),
-)
+if _RIVER_AVAILABLE:
+    ml_model = compose.Pipeline(
+        ("hasher",  feature_extraction.FeatureHasher(n_features=1024, missing_values="zeros")),
+        ("scaler",  preprocessing.StandardScaler()),
+        ("anomaly", anomaly.HalfSpaceTrees(n_trees=25, height=8, window_size=256, seed=42)),
+    )
+else:
+    ml_model = None  # type: ignore[assignment]
 
 # ─── Gemini model ─────────────────────────────────────────────────────────────
 _gemini_model: Optional[object] = None
@@ -103,6 +141,9 @@ _gemini_available = False
 
 def _init_gemini():
     global _gemini_model, _gemini_available
+    if not _GENAI_AVAILABLE:
+        print("[BACKEND] google-generativeai not installed — Gemini disabled.", file=sys.stderr)
+        return
     if not GEMINI_API_KEY:
         print("[BACKEND] GEMINI_API_KEY not set — Gemini disabled.", file=sys.stderr)
         return
@@ -132,7 +173,7 @@ _eps_window: list = []
 # ─── Global Redis client ──────────────────────────────────────────────────────
 redis_client: Optional[aioredis] = None
 
-# ─── FastAPI app ──────────────────────────────────────────────────────────────
+# ─── FastAPI app (always initialised — never fails) ──────────────────────────
 app = FastAPI(title="OmniShield AI", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
@@ -298,7 +339,7 @@ Required JSON fields (respond with EXACTLY these keys):
                 text = text[4:]
         playbook = json.loads(text)
         playbook["ai_enhanced"] = True
-        payload  = b"data: " + orjson.dumps({
+        payload  = b"data: " + _dumps({
             "type":     "playbook",
             "alert_id": alert_id,
             "playbook": playbook,
@@ -313,6 +354,9 @@ Required JSON fields (respond with EXACTLY these keys):
 # FIX: function body was split/interleaved — fully reconstructed in correct order
 
 def _warmup_ml():
+    if not _RIVER_AVAILABLE or ml_model is None:
+        print("[BACKEND] River ML not available — skipping warmup.", file=sys.stderr)
+        return
     import random as _rnd
     print("[BACKEND] Warming up ML model (1000 iterations)...", file=sys.stderr)
 
@@ -415,9 +459,12 @@ async def processing_loop(rc: aioredis):
 
                 # Step 3 — ML scoring
                 features     = _extract_features(event)
-                anomaly_score = ml_model.score_one(features)
-                ml_model.learn_one(features)
-                anomaly_score = max(0.0, min(1.0, float(anomaly_score)))
+                if ml_model is not None:
+                    anomaly_score = ml_model.score_one(features)
+                    ml_model.learn_one(features)
+                    anomaly_score = max(0.0, min(1.0, float(anomaly_score)))
+                else:
+                    anomaly_score = 0.0
 
                 # Step 4 — Cross-layer correlation
                 # Check BOTH src_ip AND dst_ip so that:
@@ -481,7 +528,7 @@ async def processing_loop(rc: aioredis):
 
                 # Only broadcast real threats
                 if threat_type or is_fp:
-                    payload = b"data: " + orjson.dumps(alert) + b"\n\n"
+                    payload = b"data: " + _dumps(alert) + b"\n\n"
                     _broadcast(payload)
 
                 # Step 6 — Gemini (Critical, non-FP only)
@@ -510,22 +557,25 @@ async def _stats_reporter():
 async def startup():
     global redis_client
 
-    # 1. Connect to Redis
-    redis_client = aioredis.from_url(
-        REDIS_URL, decode_responses=False, max_connections=20
-    )
-
-    # 2. Create consumer group
-    try:
-        await redis_client.xgroup_create(
-            STREAM_KEY, CONSUMER_GROUP, id="0", mkstream=True
+    # 1. Connect to Redis (skip if redis not installed)
+    if aioredis is None:
+        print("[BACKEND] redis package not installed — running without Redis.", file=sys.stderr)
+    else:
+        redis_client = aioredis.from_url(
+            REDIS_URL, decode_responses=False, max_connections=20
         )
-        print(f"[BACKEND] Consumer group '{CONSUMER_GROUP}' created.", file=sys.stderr)
-    except ResponseError as exc:
-        if "BUSYGROUP" in str(exc):
-            print(f"[BACKEND] Consumer group already exists — continuing.", file=sys.stderr)
-        else:
-            raise
+
+        # 2. Create consumer group
+        try:
+            await redis_client.xgroup_create(
+                STREAM_KEY, CONSUMER_GROUP, id="0", mkstream=True
+            )
+            print(f"[BACKEND] Consumer group '{CONSUMER_GROUP}' created.", file=sys.stderr)
+        except ResponseError as exc:
+            if "BUSYGROUP" in str(exc):
+                print(f"[BACKEND] Consumer group already exists — continuing.", file=sys.stderr)
+            else:
+                raise
 
     # 3. ML warmup (sync — runs before event loop tasks start)
     loop = asyncio.get_event_loop()
@@ -602,6 +652,7 @@ if __name__ == "__main__":
         "backend:app",
         host="0.0.0.0",
         port=8000,
-        loop="uvloop",
+        # loop="uvloop" removed — uvloop is optional; uvicorn picks it up automatically
+        # if installed via uvloop.install() called at import time above.
         log_level="warning",
     )
