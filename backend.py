@@ -10,8 +10,11 @@ import sys
 import time
 from typing import Optional
 
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+try:
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except ImportError:
+    pass  # uvloop not available on this platform (e.g. Vercel build phase on Windows)
 
 import orjson
 import uvicorn
