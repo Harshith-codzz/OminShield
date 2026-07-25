@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="OmniShield AI — Advanced MRI Analysis Platform with AI-powered preprocessing, anatomy classification, enhancement, and segmentation metrics." />
+<title>OmniShield AI — MRI Analysis Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+/* ══════════════════════════════════════════════════════════
+   DESIGN TOKENS & RESET
+══════════════════════════════════════════════════════════ */
+:root {
+  --bg:          #050a14;
+  --bg2:         #080f1e;
+  --card:        rgba(255,255,255,0.04);
+  --card2:       rgba(255,255,255,0.07);
+  --glass:       rgba(255,255,255,0.05);
+  --border:      rgba(255,255,255,0.08);
+  --border2:     rgba(255,255,255,0.14);
+  --cyan:        #00d4ff;
+  --cyan-d:      rgba(0,212,255,0.12);
+  --cyan-g:      rgba(0,212,255,0.35);
+  --purple:      #7c3aed;
+  --purpll:      #a78bfa;
+  --green:       #10b981;
+  --green-d:     rgba(16,185,129,0.13);
+  --amber:       #f59e0b;
+  --amber-d:     rgba(245,158,11,0.13);
+  --rose:        #f43f5e;
+  --rose-d:      rgba(244,63,94,0.13);
+  --blue:        #3b82f6;
+  --blue-d:      rgba(59,130,246,0.13);
+  --t1: #f0f4ff; --t2: #94a3b8; --t3: #475569;
+  --f: 'Inter',sans-serif;
+  --fd: 'Outfit',sans-serif;
+  --r: 12px; --rl: 18px; --rx: 22px;
+  --tr: 220ms ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--f);background:var(--bg);color:var(--t1);line-height:1.6;min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.25);border-radius:99px}
+button{cursor:pointer;font-family:var(--f)}
+input{font-family:var(--f)}
+
+/* ══════════════════════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════════════════════ */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 10px var(--cyan-g)}50%{box-shadow:0 0 28px var(--cyan-g)}}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.7);opacity:0}}
+@keyframes bar-fill{from{width:0%}to{width:var(--target-w)}}
+@keyframes dash-fill{from{stroke-dashoffset:var(--start-offset)}to{stroke-dashoffset:var(--end-offset)}}
+
+/* ══════════════════════════════════════════════════════════
+   UTILITY
+══════════════════════════════════════════════════════════ */
+.hidden{display:none!important}
+.fade-up{animation:fadeUp .4s ease forwards}
+.scale-in{animation:scaleIn .3s ease forwards}
+.fade-in{animation:fadeIn .35s ease forwards}
+
+/* ══════════════════════════════════════════════════════════
+   PAGES WRAPPER
+══════════════════════════════════════════════════════════ */
+.page{display:none;min-height:100vh}
+.page.active{display:flex}
+
+/* ══════════════════════════════════════════════════════════
+   ██████  AUTH PAGE
+══════════════════════════════════════════════════════════ */
+#page-auth{
+  align-items:center;justify-content:center;
+  background:
+    radial-gradient(ellipse at 20% 40%,rgba(0,212,255,.05) 0%,transparent 55%),
+    radial-gradient(ellipse at 80% 70%,rgba(124,58,237,.07) 0%,transparent 55%),
+    var(--bg);
+  position:relative;overflow:hidden;padding:24px;
+}
+#auth-canvas{position:fixed;inset:0;pointer-events:none;z-index:0}
+
+.auth-blob{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0}
+.ab1{width:450px;height:450px;background:rgba(0,212,255,.05);top:-120px;left:-80px;animation:float 9s ease-in-out infinite}
+.ab2{width:520px;height:520px;background:rgba(124,58,237,.06);bottom:-160px;right:-100px;animation:float 11s ease-in-out infinite reverse}
+
+.auth-wrap{position:relative;z-index:1;width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;gap:24px}
+
+.auth-brand{display:flex;align-items:center;gap:14px}
+.auth-logo-ring{
+  width:54px;height:54px;
+  background:linear-gradient(135deg,rgba(0,212,255,.1),rgba(124,58,237,.1));
+  border:1px solid rgba(0,212,255,.22);border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  animation:pulse-glow 3.5s ease-in-out infinite;
+}
+.auth-brand-name{
+  font-family:var(--fd);font-size:23px;font-weight:900;
+  background:linear-gradient(135deg,#00d4ff,#a78bfa);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  letter-spacing:-.02em;
+}
+.auth-brand-sub{font-size:11px;color:var(--t3);letter-spacing:.09em;text-transform:uppercase;margin-top:1px}
+
+.auth-card{
+  width:100%;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:22px;padding:32px;
+  backdrop-filter:blur(22px);
+  box-shadow:0 25px 65px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04);
+  animation:scaleIn .35s ease;
+}
+.auth-title{font-family:var(--fd);font-size:24px;font-weight:800;margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--t3);margin-bottom:22px;line-height:1.5}
+
+/* Google button */
+.btn-google{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:11px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);border-radius:11px;
+  color:var(--t1);font-size:14px;font-weight:500;transition:all var(--tr);
+}
+.btn-google:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);transform:translateY(-1px)}
+
+.auth-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--t3);font-size:12px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-label{font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.06em;text-transform:uppercase}
+.field{
+  width:100%;padding:11px 14px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--t1);font-size:14px;outline:none;
+  transition:border-color var(--tr),box-shadow var(--tr);
+}
+.field::placeholder{color:var(--t3)}
+.field:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,.1)}
+.pw-wrap{position:relative}
+.pw-wrap .field{padding-right:44px}
+.pw-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;opacity:.55;transition:opacity var(--tr)}
+.pw-eye:hover{opacity:1}
+
+.auth-err{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:10px;
+  background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);
+  border-radius:9px;color:var(--rose);font-size:13px;animation:fadeUp .3s ease;
+}
+
+.btn-primary{
+  width:100%;padding:13px;
+  background:linear-gradient(135deg,#0ea5e9,#7c3aed);
+  border:none;border-radius:var(--r);color:#fff;font-size:15px;font-weight:700;
+  transition:all var(--tr);box-shadow:0 4px 18px rgba(0,212,255,.28);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,212,255,.45)}
+.btn-primary:disabled{opacity:.45;transform:none;cursor:not-allowed}
+.mini-spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+
+.auth-toggle{text-align:center;margin-top:16px;font-size:13px;color:var(--t3)}
+.auth-toggle button{background:none;border:none;color:var(--cyan);font-weight:700;font-size:13px;font-family:var(--f)}
+.auth-toggle button:hover{color:#7dd3fc}
+
+.auth-pills{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.pill{padding:5px 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:99px;font-size:11px;color:var(--t3);font-weight:500}
+
+/* ══════════════════════════════════════════════════════════
+   ██████  DASHBOARD PAGE
+══════════════════════════════════════════════════════════ */
+#page-dash{flex-direction:column}
+
+/* NAVBAR */
+.navbar{
+  height:58px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;gap:14px;
+  background:rgba(8,15,30,.97);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(22px);
+  flex-shrink:0;
+}
+.nb-brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.nb-logo{
+  width:34px;height:34px;background:linear-gradient(135deg,rgba(0,212,255,.1),rgba(124,58,237,.1));
+  border:1px solid rgba(0,212,255,.2);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+}
+.nb-name{font-family:var(--fd);font-size:16px;font-weight:900;background:linear-gradient(135deg,#00d4ff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.02em}
+.nb-tag{font-size:10px;color:var(--t3);background:var(--card);border:1px solid var(--border);border-radius:99px;padding:2px 8px;letter-spacing:.07em;text-transform:uppercase}
+
+.nb-tabs{display:flex;gap:4px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);padding:4px}
+.nb-tab{
+  display:flex;align-items:center;gap:7px;padding:7px 16px;
+  border:1px solid transparent;border-radius:8px;background:transparent;
+  color:var(--t3);font-size:13px;font-weight:600;transition:all var(--tr);
+}
+.nb-tab:hover{color:var(--t1);background:rgba(255,255,255,.05)}
+.nb-tab.active{background:rgba(0,212,255,.1);color:var(--cyan);border-color:rgba(0,212,255,.2);box-shadow:0 0 12px rgba(0,212,255,.1)}
+
+.nb-user{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.nb-uinfo{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.nb-uname{font-size:13px;font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nb-uemail{font-size:11px;color:var(--t3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid rgba(0,212,255,.2)}
+.btn-logout{
+  width:34px;height:34px;padding:0;background:rgba(255,255,255,.05);
+  border:1px solid var(--border);border-radius:9px;color:var(--t2);
+  display:flex;align-items:center;justify-content:center;transition:all var(--tr);
+}
+.btn-logout:hover{border-color:var(--rose);color:var(--rose)}
+
+/* MAIN AREA */
+.dash-main{flex:1;overflow:hidden}
+.tab-pane{display:none;height:calc(100vh - 58px)}
+.tab-pane.active{display:flex}
+
+/* ══════════════════════════════════════════════════════════
+   ██████  ANALYZE TAB (split layout)
+══════════════════════════════════════════════════════════ */
+#tab-analyze{
+  display:grid;
+  grid-template-columns:400px 1fr;
+  gap:18px;padding:18px;
+  overflow:hidden;
+}
+/* LEFT COLUMN */
+.left-col{display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding-right:2px}
+/* RIGHT COLUMN */
+.right-col{overflow-y:auto;display:flex;flex-direction:column}
+
+/* Section card */
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:18px}
+.scard-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:10px}
+.scard-title{font-family:var(--fd);font-size:15px;font-weight:800;margin-bottom:2px}
+.scard-sub{font-size:11px;color:var(--t3)}
+
+/* Upload zone */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--rl);
+  padding:30px 18px;display:flex;flex-direction:column;align-items:center;gap:9px;
+  cursor:pointer;transition:all var(--tr);background:rgba(0,212,255,.01);text-align:center;
+}
+.upload-zone:hover,.upload-zone.drag{border-color:rgba(0,212,255,.45);background:rgba(0,212,255,.05);box-shadow:0 0 22px rgba(0,212,255,.08)}
+.uz-icon{width:60px;height:60px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.15);border-radius:14px;display:flex;align-items:center;justify-content:center;transition:all var(--tr)}
+.upload-zone:hover .uz-icon{background:rgba(0,212,255,.12);transform:translateY(-2px)}
+.uz-title{font-size:14px;font-weight:700}
+.uz-sub{font-size:11px;color:var(--t3)}
+.uz-browse{font-size:12px;font-weight:700;color:var(--cyan);margin-top:3px}
+
+/* File preview */
+.file-prev{display:flex;align-items:center;gap:12px;padding:12px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:var(--r)}
+.fp-thumb{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
+.fp-icon{width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);border-radius:8px}
+.fp-info{flex:1;min-width:0}
+.fp-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-size{font-size:11px;color:var(--t3);margin-top:2px}
+.btn-change{flex-shrink:0;padding:5px 10px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;color:var(--t2);font-size:11px;font-weight:600;transition:all var(--tr)}
+.btn-change:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* Analyze button */
+.btn-analyze{
+  width:100%;margin-top:10px;padding:13px;
+  background:linear-gradient(135deg,#0ea5e9,#7c3aed);
+  border:none;border-radius:var(--r);color:#fff;font-size:14px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all var(--tr);box-shadow:0 4px 16px rgba(0,212,255,.28);
+  animation:fadeUp .3s ease;
+}
+.btn-analyze:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,212,255,.45)}
+
+/* Pipeline */
+.pipeline-steps{display:flex;flex-direction:column;gap:3px}
+.p-step{display:flex;gap:11px;padding:9px 11px;border-radius:var(--r);transition:background var(--tr)}
+.p-step.running{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.p-step.pending{opacity:.38}
+
+.step-ind{
+  position:relative;width:28px;height:28px;
+  border:1.5px solid var(--step-c,var(--cyan));
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:2px;
+}
+.step-ring{position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--step-c,var(--cyan));opacity:.5;animation:pulse-ring 1.5s ease-out infinite}
+.step-spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,.15);border-top-color:var(--step-c,var(--cyan));border-radius:50%;animation:spin .7s linear infinite}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--step-c,var(--t3))}
+.step-check{font-size:13px}
+
+.step-body{flex:1;min-width:0}
+.step-hdr{display:flex;align-items:center;gap:6px;margin-bottom:1px}
+.step-ico{font-size:13px}
+.step-lbl{font-size:13px;font-weight:700}
+.step-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.04em}
+.sb-run{background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.2);animation:pulse-glow 1.5s infinite}
+.sb-done{background:var(--green-d);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.step-sub{font-size:11px;color:var(--t3)}
+
+.step-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:99px;font-size:10px}
+.chip-k{color:var(--t3);text-transform:capitalize}
+.chip-v{font-weight:700;color:var(--t1)}
+
+/* Progress bar */
+.prog-bar{height:4px;border-radius:99px;background:var(--border);overflow:hidden;margin-bottom:16px}
+.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--purple));transition:width .5s ease}
+
+/* ══════════════════════════════════════════════════════════
+   ██████  RESULTS PANEL (right column)
+══════════════════════════════════════════════════════════ */
+.results-panel{display:flex;flex-direction:column;gap:14px;height:100%;overflow-y:auto}
+
+/* Output image frame */
+.out-section{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--rx);padding:18px;display:flex;flex-direction:column;gap:14px;
+  animation:scaleIn .35s ease;
+}
+.out-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.out-title{font-family:var(--fd);font-size:18px;font-weight:900;background:linear-gradient(135deg,#00d4ff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.out-sub{font-size:12px;color:var(--t3);margin-top:1px}
+.out-badges{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+
+/* Image frame */
+.img-frame{
+  position:relative;border-radius:var(--rl);overflow:hidden;
+  background:#000810;border:1px solid var(--border);
+  min-height:240px;max-height:360px;
+  display:flex;align-items:center;justify-content:center;
+}
+.out-img{width:100%;max-height:360px;object-fit:contain;display:block;filter:contrast(1.05) brightness(1.02);transition:filter .3s}
+.out-img:hover{filter:contrast(1.1) brightness(1.06) saturate(1.1)}
+.img-no-img{display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px;color:var(--t3);font-size:13px;opacity:.6}
+
+/* Corner tags */
+.img-tag{position:absolute;padding:3px 9px;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);border-radius:6px}
+.img-tag span{font-size:10px;font-weight:800;color:var(--cyan);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fd)}
+.tl{top:10px;left:10px}.tr{top:10px;right:10px}
+.bl{bottom:10px;left:10px}.br{bottom:10px;right:10px}
+
+/* Gauges */
+.gauges-row{display:flex;justify-content:space-around;align-items:center;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:5px}
+.gauge-svg{position:relative;width:64px;height:64px}
+.gauge-svg svg{position:absolute;inset:0}
+.gauge-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:13px;font-weight:900;z-index:1}
+.gauge-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em}
+
+/* Timestamp */
+.out-ts{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t3)}
+
+/* ── Detail tabs ── */
+.det-section{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--rx);overflow:hidden;display:flex;flex-direction:column;flex:1;
+  min-height:280px;animation:fadeUp .4s ease;
+}
+.det-tabs{display:flex;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);overflow-x:auto;flex-shrink:0}
+.det-tab{
+  display:flex;align-items:center;gap:5px;padding:10px 13px;
+  border:none;border-bottom:2px solid transparent;background:transparent;
+  color:var(--t3);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;
+  transition:all var(--tr);
+}
+.det-tab:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.det-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(0,212,255,.04)}
+.det-content{padding:18px;overflow-y:auto;flex:1}
+
+/* ── Metrics list ── */
+.mlist{display:flex;flex-direction:column;gap:7px}
+.mrow{display:flex;align-items:center;justify-content:space-between;padding:8px 13px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);gap:10px}
+.mrow-lbl{font-size:12px;color:var(--t2);font-weight:500}
+.mrow-right{display:flex;align-items:center;gap:9px}
+.mbar{width:55px;height:4px;background:var(--border);border-radius:99px;overflow:hidden;flex-shrink:0}
+.mbar-fill{height:100%;border-radius:99px}
+.mval{font-family:var(--fd);font-size:13px;font-weight:800;min-width:56px;text-align:right}
+.mu{font-size:10px;opacity:.65;font-family:var(--f)}
+
+/* ── Info grid ── */
+.igrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.iitem{display:flex;flex-direction:column;gap:2px;padding:9px 12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r)}
+.ikey{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--t3)}
+.ival{font-size:12px;font-weight:700;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Quality grid ── */
+.qgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.qcard{padding:13px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;gap:3px;transition:all var(--tr)}
+.qcard:hover{background:rgba(255,255,255,.06);transform:translateY(-2px)}
+.qval{font-family:var(--fd);font-size:20px;font-weight:900;letter-spacing:-.03em}
+.qlbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t2)}
+.qdesc{font-size:10px;color:var(--t3);line-height:1.4;margin-top:2px}
+
+/* ── Segmentation ── */
+.seg-stats{display:flex;gap:12px}
+.sstat{flex:1;padding:11px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;align-items:center;gap:3px}
+.sstat-v{font-family:var(--fd);font-size:17px;font-weight:900;letter-spacing:-.02em}
+.sstat-l{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+
+.class-bar-track{display:flex;height:11px;border-radius:99px;overflow:hidden;gap:2px;margin-top:10px}
+.class-seg{border-radius:99px;transition:width .8s ease}
+.class-legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.cleg{display:flex;align-items:center;gap:5px;font-size:11px}
+.cleg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cleg-k{color:var(--t2);text-transform:capitalize}
+.cleg-v{font-weight:800;color:var(--t1)}
+
+/* ── Section header ── */
+.shdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.shdr-ico{font-size:14px}
+.shdr-title{font-size:14px;font-weight:800;flex:1}
+
+/* ── Enhance box ── */
+.enhance-note{padding:11px 14px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.12);border-radius:var(--r);font-size:12px;color:var(--t2);line-height:1.6;margin-top:8px}
+
+/* ── Metrics summary ── */
+.msummary{margin-top:8px}
+.msum-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 15px;border-radius:99px;font-size:12px;font-weight:700}
+.msc-exc{background:var(--green-d);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.msc-good{background:var(--cyan-d);color:var(--cyan);border:1px solid rgba(0,212,255,.2)}
+.msc-fair{background:var(--amber-d);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+
+/* Actions */
+.res-actions{display:flex;gap:9px;justify-content:flex-end;padding:4px 0;flex-shrink:0}
+.btn-sm{padding:7px 14px;font-size:12px;font-weight:700;border-radius:9px;display:flex;align-items:center;gap:6px;transition:all var(--tr)}
+.btn-ghost-sm{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--t2)}
+.btn-ghost-sm:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-prim-sm{background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:none;color:#fff;box-shadow:0 3px 12px rgba(0,212,255,.25)}
+.btn-prim-sm:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,212,255,.4)}
+
+/* Placeholder */
+.result-placeholder{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--rx);
+  min-height:400px;
+}
+.rp-inner{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;max-width:280px;padding:40px;opacity:.6}
+.rp-inner h3{font-size:16px;font-weight:700;color:var(--t2)}
+.rp-inner p{font-size:13px;color:var(--t3);line-height:1.6}
+
+/* Anatomy badge */
+.abadge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.03em}
+.ab-cyan{background:var(--cyan-d);color:var(--cyan);border:1px solid rgba(0,212,255,.2)}
+.ab-amber{background:var(--amber-d);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.ab-rose{background:var(--rose-d);color:var(--rose);border:1px solid rgba(244,63,94,.2)}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.b-cyan{background:var(--cyan-d);color:var(--cyan);border:1px solid rgba(0,212,255,.2)}
+.b-green{background:var(--green-d);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.b-amber{background:var(--amber-d);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.b-purple{background:rgba(124,58,237,.15);color:var(--purpll);border:1px solid rgba(124,58,237,.25)}
+.b-rose{background:var(--rose-d);color:var(--rose);border:1px solid rgba(244,63,94,.2)}
+.b-blue{background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+
+/* ══════════════════════════════════════════════════════════
+   ██████  HISTORY TAB
+══════════════════════════════════════════════════════════ */
+#tab-history{flex-direction:column;padding:18px;gap:14px;overflow:hidden}
+
+.hist-hdr{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.hist-title{font-family:var(--fd);font-size:20px;font-weight:900;background:linear-gradient(135deg,#00d4ff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hist-sub{font-size:12px;color:var(--t3);margin-top:2px}
+.hist-filters{display:flex;gap:6px}
+.fbtn{padding:6px 13px;border:1px solid var(--border);border-radius:99px;background:transparent;color:var(--t3);font-size:12px;font-weight:700;transition:all var(--tr)}
+.fbtn:hover{border-color:rgba(0,212,255,.3);color:var(--t1)}
+.fbtn.active{background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.3);color:var(--cyan)}
+
+.hist-body{display:grid;grid-template-columns:1fr;gap:14px;flex:1;overflow:hidden;transition:all var(--tr)}
+.hist-body.with-drawer{grid-template-columns:1fr 350px}
+
+.hist-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:12px;align-content:start;overflow-y:auto;padding-right:2px;
+}
+
+/* History card */
+.hcard{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--rl);
+  padding:14px;cursor:pointer;transition:all var(--tr);display:flex;flex-direction:column;gap:7px;
+}
+.hcard:hover{background:var(--card2);border-color:rgba(0,212,255,.25);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.hcard.selected{border-color:var(--cyan)!important;background:rgba(0,212,255,.05)!important;box-shadow:0 0 0 1px rgba(0,212,255,.2),0 8px 24px rgba(0,212,255,.1)!important}
+.hc-hdr{display:flex;align-items:center;justify-content:space-between;gap:7px}
+.hc-date{font-size:10px;color:var(--t3)}
+.hc-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hc-type{font-size:11px;color:var(--t3)}
+.hc-mets{display:flex;gap:7px;padding-top:5px;border-top:1px solid var(--border)}
+.hm{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.hm-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.hm-v{font-family:var(--fd);font-size:13px;font-weight:900}
+.hc-footer{font-size:11px;color:var(--t3);font-weight:500;transition:color var(--tr)}
+.hcard:hover .hc-footer{color:var(--cyan)}
+.hc-footer.sel{color:var(--green)}
+
+/* Empty state */
+.hist-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:11px;padding:55px 20px;text-align:center;color:var(--t3);opacity:.65}
+.hist-empty h3{font-size:15px;font-weight:700;color:var(--t2)}
+.hist-empty p{font-size:12px;max-width:260px;line-height:1.6}
+
+/* Skeleton */
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.04) 100%);background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+
+/* Drawer */
+.drawer{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--rx);
+  display:flex;flex-direction:column;overflow:hidden;height:100%;
+  animation:scaleIn .25s ease;
+}
+.dr-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;gap:10px}
+.dr-title{font-family:var(--fd);font-size:14px;font-weight:800;margin-bottom:1px}
+.dr-sub{font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.dr-body{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:14px}
+.dr-sec{display:flex;flex-direction:column;gap:7px}
+.dr-sec-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border)}
+.dr-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.dr-item{display:flex;flex-direction:column;gap:2px;padding:7px 11px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r)}
+.dr-key{font-size:10px;font-weight:700;text-transform:capitalize;color:var(--t3)}
+.dr-val{font-size:12px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════ */
+@media(max-width:1024px){
+  #tab-analyze{grid-template-columns:1fr;height:auto;overflow:auto}
+  .tab-pane{height:auto}
+}
+@media(max-width:768px){
+  .nb-uinfo,.nb-tag{display:none}
+  .hist-body.with-drawer{grid-template-columns:1fr}
+  .qgrid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     AUTH PAGE
+════════════════════════════════════════════ -->
+<div id="page-auth" class="page active">
+  <canvas id="auth-canvas"></canvas>
+  <div class="ab1 auth-blob"></div>
+  <div class="ab2 auth-blob"></div>
+
+  <div class="auth-wrap">
+    <!-- Brand -->
+    <div class="auth-brand">
+      <div class="auth-logo-ring">
+        <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
+          <circle cx="18" cy="18" r="17" stroke="url(#ag1)" stroke-width="2"/>
+          <path d="M9 18c0-5 4-9 9-9s9 4 9 9-4 9-9 9" stroke="url(#ag2)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="18" cy="18" r="4" fill="url(#ag1)"/>
+          <defs>
+            <linearGradient id="ag1" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#00d4ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+            <linearGradient id="ag2" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#7c3aed"/><stop offset="1" stop-color="#00d4ff"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div>
+        <div class="auth-brand-name">OmniShield AI</div>
+        <div class="auth-brand-sub">MRI Analysis Platform</div>
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="auth-card">
+      <h2 class="auth-title" id="auth-heading">Welcome back</h2>
+      <p class="auth-sub" id="auth-desc">Sign in to access your MRI analysis dashboard</p>
+
+      <!-- Google -->
+      <button class="btn-google" id="btn-google" onclick="handleGoogleAuth()">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+        Continue with Google
+      </button>
+
+      <div class="auth-divider"><span id="auth-div-text">or sign in with email</span></div>
+
+      <!-- Name field (signup only) -->
+      <div class="form-group hidden" id="name-group">
+        <label class="form-label">Full Name</label>
+        <input class="field" id="field-name" type="text" placeholder="Dr. Jane Smith" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email address</label>
+        <input class="field" id="field-email" type="email" placeholder="doctor@hospital.com" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="pw-wrap">
+          <input class="field" id="field-pw" type="password" placeholder="••••••••" />
+          <button class="pw-eye" onclick="togglePw()" id="pw-eye-btn">👁</button>
+        </div>
+      </div>
+
+      <div class="auth-err hidden" id="auth-err"></div>
+
+      <button class="btn-primary" id="btn-auth-submit" onclick="handleAuthSubmit()">
+        <span id="auth-btn-text">Sign In →</span>
+      </button>
+
+      <div class="auth-toggle">
+        <span id="auth-toggle-text">Don't have an account?</span>
+        <button onclick="toggleAuthMode()" id="auth-toggle-btn"> Sign up</button>
+      </div>
+    </div>
+
+    <div class="auth-pills">
+      <span class="pill">🧠 Brain Segmentation</span>
+      <span class="pill">🦴 Spine Analysis</span>
+      <span class="pill">📊 PSNR · SSIM · Dice</span>
+      <span class="pill">🔒 Secure & Private</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     DASHBOARD PAGE
+════════════════════════════════════════════ -->
+<div id="page-dash" class="page">
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nb-brand">
+      <div class="nb-logo">
+        <svg width="20" height="20" viewBox="0 0 36 36" fill="none">
+          <circle cx="18" cy="18" r="17" stroke="url(#ng1)" stroke-width="2"/>
+          <path d="M9 18c0-5 4-9 9-9s9 4 9 9-4 9-9 9" stroke="url(#ng2)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="18" cy="18" r="4" fill="url(#ng1)"/>
+          <defs>
+            <linearGradient id="ng1" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#00d4ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+            <linearGradient id="ng2" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#7c3aed"/><stop offset="1" stop-color="#00d4ff"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <span class="nb-name">OmniShield AI</span>
+      <span class="nb-tag">MRI Platform</span>
+    </div>
+
+    <div class="nb-tabs">
+      <button class="nb-tab active" id="nav-analyze" onclick="switchTab('analyze')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Analyze
+      </button>
+      <button class="nb-tab" id="nav-history" onclick="switchTab('history')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+      </button>
+    </div>
+
+    <div class="nb-user">
+      <div class="nb-uinfo">
+        <span class="nb-uname" id="nb-uname">User</span>
+        <span class="nb-uemail" id="nb-uemail"></span>
+      </div>
+      <div class="avatar" id="nb-avatar">U</div>
+      <button class="btn-logout" onclick="handleLogout()" title="Sign out">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="dash-main">
+
+    <!-- ── ANALYZE TAB ── -->
+    <div class="tab-pane active" id="tab-analyze">
+
+      <!-- LEFT -->
+      <div class="left-col">
+
+        <!-- Upload card -->
+        <div class="scard">
+          <div class="scard-hdr">
+            <div>
+              <div class="scard-title">Upload MRI Volume</div>
+              <div class="scard-sub">Upload your scan to begin AI-powered analysis</div>
+            </div>
+            <button class="btn-change hidden" id="btn-new" onclick="resetAnalysis()" style="font-size:12px;font-weight:700;padding:6px 12px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:9px;color:var(--t2)">+ New</button>
+          </div>
+
+          <!-- Upload zone -->
+          <div class="upload-zone" id="upload-zone"
+            onclick="document.getElementById('file-input').click()"
+            ondragover="event.preventDefault();this.classList.add('drag')"
+            ondragleave="this.classList.remove('drag')"
+            ondrop="handleDrop(event)">
+            <div class="uz-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.5">
+                <defs><linearGradient id="uig" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#00d4ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div class="uz-title">Drop your MRI volume here</div>
+            <div class="uz-sub">Supports NIfTI (.nii, .nii.gz), DICOM (.dcm), PNG, JPG</div>
+            <div class="uz-browse">Browse files →</div>
+          </div>
+          <input type="file" id="file-input" accept="image/*,.nii,.nii.gz,.dcm,.gz" style="display:none" onchange="handleFileSelect(event)" />
+
+          <!-- File preview (hidden until file selected) -->
+          <div class="file-prev hidden" id="file-prev">
+            <img class="fp-thumb hidden" id="fp-thumb" alt="preview" />
+            <div class="fp-icon hidden" id="fp-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="fp-info">
+              <div class="fp-name" id="fp-name"></div>
+              <div class="fp-size" id="fp-size"></div>
+            </div>
+            <button class="btn-change" onclick="clearFile()">Change</button>
+          </div>
+
+          <button class="btn-analyze hidden" id="btn-analyze" onclick="startAnalysis()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            Analyze MRI (~14s)
+          </button>
+        </div>
+
+        <!-- Pipeline card (hidden until running) -->
+        <div class="scard hidden" id="pipeline-card">
+          <div class="scard-hdr">
+            <div>
+              <div class="scard-title">Analysis Pipeline</div>
+              <div class="scard-sub" id="prog-label">0% complete</div>
+            </div>
+            <span class="badge b-cyan" id="pipe-status-badge">⚡ Running</span>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+          <div class="pipeline-steps" id="pipeline-steps"></div>
+        </div>
+
+      </div><!-- /left-col -->
+
+      <!-- RIGHT: Results or placeholder -->
+      <div class="right-col" id="right-col">
+        <div class="result-placeholder" id="result-placeholder">
+          <div class="rp-inner">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width=".9" style="margin-bottom:6px;opacity:.5">
+              <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <h3>Results will appear here</h3>
+            <p>Upload an MRI scan and click Analyze to view the output image alongside detailed metrics.</p>
+          </div>
+        </div>
+        <!-- Results panel injected here -->
+        <div id="results-container" class="hidden results-panel"></div>
+      </div>
+
+    </div><!-- /tab-analyze -->
+
+    <!-- ── HISTORY TAB ── -->
+    <div class="tab-pane" id="tab-history">
+      <div class="hist-hdr">
+        <div>
+          <div class="hist-title">Analysis History</div>
+          <div class="hist-sub" id="hist-count">0 scans analyzed</div>
+        </div>
+        <div class="hist-filters">
+          <button class="fbtn active" onclick="filterHistory('all',this)">🗂 All</button>
+          <button class="fbtn" onclick="filterHistory('brain',this)">🧠 Brain</button>
+          <button class="fbtn" onclick="filterHistory('spine',this)">🦴 Spine</button>
+        </div>
+      </div>
+
+      <div class="hist-body" id="hist-body">
+        <div class="hist-grid" id="hist-grid">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dash-main -->
+</div><!-- /page-dash -->
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════ */
+let state = {
+  user: null,
+  authMode: 'login',   // login | signup
+  showPw: false,
+  selectedFile: null,
+  analysisResult: null,
+  historyRecords: [],
+  historyFilter: 'all',
+  selectedHistoryId: null,
+  pipelineRunning: false,
+};
+
+/* ══════════════════════════════════════════════════════════
+   PARTICLE CANVAS
+══════════════════════════════════════════════════════════ */
+(function initCanvas(){
+  const canvas = document.getElementById('auth-canvas');
+  const ctx = canvas.getContext('2d');
+  let anim;
+  const resize = () => { canvas.width = innerWidth; canvas.height = innerHeight; };
+  resize(); window.addEventListener('resize', resize);
+  const pts = Array.from({length:55},()=>({
+    x:Math.random()*innerWidth, y:Math.random()*innerHeight,
+    vx:(Math.random()-.5)*.35, vy:(Math.random()-.5)*.35,
+    r:Math.random()*1.3+.4, op:Math.random()*.45+.1,
+  }));
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=canvas.width; if(p.x>canvas.width)p.x=0;
+      if(p.y<0)p.y=canvas.height; if(p.y>canvas.height)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(0,212,255,${p.op})`; ctx.fill();
+    });
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+      const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y, d=Math.sqrt(dx*dx+dy*dy);
+      if(d<115){ ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
+        ctx.strokeStyle=`rgba(0,212,255,${.07*(1-d/115)})`; ctx.lineWidth=1; ctx.stroke(); }
+    }
+    anim = requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ══════════════════════════════════════════════════════════
+   AUTH LOGIC
+══════════════════════════════════════════════════════════ */
+function toggleAuthMode(){
+  state.authMode = state.authMode === 'login' ? 'signup' : 'login';
+  const isLogin = state.authMode === 'login';
+  document.getElementById('auth-heading').textContent = isLogin ? 'Welcome back' : 'Create account';
+  document.getElementById('auth-desc').textContent = isLogin ? 'Sign in to access your MRI analysis dashboard' : 'Start analyzing MRI volumes with AI';
+  document.getElementById('auth-div-text').textContent = isLogin ? 'or sign in with email' : 'or sign up with email';
+  document.getElementById('auth-btn-text').textContent = isLogin ? 'Sign In →' : 'Create Account →';
+  document.getElementById('auth-toggle-text').textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+  document.getElementById('auth-toggle-btn').textContent = isLogin ? ' Sign up' : ' Sign in';
+  document.getElementById('name-group').classList.toggle('hidden', isLogin);
+  hideAuthErr();
+}
+
+function togglePw(){
+  state.showPw = !state.showPw;
+  document.getElementById('field-pw').type = state.showPw ? 'text' : 'password';
+  document.getElementById('pw-eye-btn').textContent = state.showPw ? '🙈' : '👁';
+}
+
+function showAuthErr(msg){
+  const el = document.getElementById('auth-err');
+  el.innerHTML = `<span>⚠</span> ${msg}`;
+  el.classList.remove('hidden');
+}
+function hideAuthErr(){ document.getElementById('auth-err').classList.add('hidden'); }
+
+function handleGoogleAuth(){
+  // Simulate Google sign-in with a demo user
+  simulateSignIn({ name:'Dr. Demo User', email:'demo@omnishield.ai' });
+}
+
+function handleAuthSubmit(){
+  const email = document.getElementById('field-email').value.trim();
+  const pw = document.getElementById('field-pw').value;
+  hideAuthErr();
+  if(!email){ showAuthErr('Please enter your email address.'); return; }
+  if(!pw || pw.length < 6){ showAuthErr('Password must be at least 6 characters.'); return; }
+  const btn = document.getElementById('btn-auth-submit');
+  btn.innerHTML = '<div class="mini-spin"></div> Processing...';
+  btn.disabled = true;
+  setTimeout(()=>{
+    btn.disabled = false;
+    btn.innerHTML = `<span>${state.authMode==='login'?'Sign In →':'Create Account →'}</span>`;
+    const name = state.authMode === 'signup'
+      ? (document.getElementById('field-name').value.trim() || email.split('@')[0])
+      : email.split('@')[0];
+    simulateSignIn({ name, email });
+  }, 1200);
+}
+
+function simulateSignIn(user){
+  state.user = user;
+  // Populate navbar
+  const short = user.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('nb-uname').textContent = user.name;
+  document.getElementById('nb-uemail').textContent = user.email;
+  document.getElementById('nb-avatar').textContent = short;
+  // Switch pages
+  document.getElementById('page-auth').classList.remove('active');
+  document.getElementById('page-dash').classList.add('active');
+  // Load mock history
+  state.historyRecords = generateMockHistory();
+  renderHistory();
+}
+
+function handleLogout(){
+  state.user = null;
+  state.selectedFile = null;
+  state.analysisResult = null;
+  resetAnalysis();
+  document.getElementById('page-dash').classList.remove('active');
+  document.getElementById('page-auth').classList.add('active');
+  document.getElementById('field-email').value = '';
+  document.getElementById('field-pw').value = '';
+}
+
+/* ══════════════════════════════════════════════════════════
+   TAB SWITCHING
+══════════════════════════════════════════════════════════ */
+function switchTab(tab){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.getElementById(`nav-${tab}`).classList.add('active');
+}
+
+/* ══════════════════════════════════════════════════════════
+   FILE HANDLING
+══════════════════════════════════════════════════════════ */
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if(f) processFile(f);
+}
+function handleFileSelect(e){ if(e.target.files[0]) processFile(e.target.files[0]); }
+
+function processFile(f){
+  state.selectedFile = f;
+  // Hide zone, show preview
+  document.getElementById('upload-zone').classList.add('hidden');
+  document.getElementById('file-prev').classList.remove('hidden');
+  document.getElementById('fp-name').textContent = f.name;
+  document.getElementById('fp-size').textContent = `${(f.size/1024).toFixed(1)} KB · ${f.type || 'Binary file'}`;
+  // Show thumb or icon
+  if(f.type.startsWith('image/')){
+    const url = URL.createObjectURL(f);
+    document.getElementById('fp-thumb').src = url;
+    document.getElementById('fp-thumb').classList.remove('hidden');
+    document.getElementById('fp-icon').classList.add('hidden');
+  } else {
+    document.getElementById('fp-icon').classList.remove('hidden');
+    document.getElementById('fp-thumb').classList.add('hidden');
+  }
+  document.getElementById('btn-analyze').classList.remove('hidden');
+}
+
+function clearFile(){
+  state.selectedFile = null;
+  document.getElementById('upload-zone').classList.remove('hidden');
+  document.getElementById('file-prev').classList.add('hidden');
+  document.getElementById('btn-analyze').classList.add('hidden');
+  document.getElementById('file-input').value = '';
+}
+
+function resetAnalysis(){
+  clearFile();
+  state.analysisResult = null;
+  document.getElementById('pipeline-card').classList.add('hidden');
+  document.getElementById('result-placeholder').classList.remove('hidden');
+  document.getElementById('results-container').classList.add('hidden');
+  document.getElementById('results-container').innerHTML = '';
+  document.getElementById('btn-new').classList.add('hidden');
+}
+
+/* ══════════════════════════════════════════════════════════
+   PIPELINE SIMULATION
+══════════════════════════════════════════════════════════ */
+const STEPS = [
+  { id:'preprocess', label:'Preprocessing',        sub:'Denoise · N4 Bias Correction · Contrast · Sharpness · Noise', icon:'⚙️', color:'#00d4ff', ms:1800 },
+  { id:'classify',   label:'Anatomy Classification',sub:'CNN + Metadata Heuristic — Brain vs Spine',                  icon:'🧠', color:'#a78bfa', ms:2200 },
+  { id:'enhance',    label:'Enhancement',           sub:'BraTS-pretrained / Classical + Hackathon-set',               icon:'✨', color:'#f59e0b', ms:2500 },
+  { id:'score',      label:'Score & Select',        sub:'PSNR · SSIM · BRISQUE · NIQE · LPIPS',                      icon:'📊', color:'#3b82f6', ms:1600 },
+  { id:'segment',    label:'Segmentation',          sub:'CSF / GM / WM · Tumor / Edema · Disc / Stenosis',           icon:'🔬', color:'#10b981', ms:2800 },
+  { id:'metrics',    label:'Compute Metrics',       sub:'Dice · Jaccard · Hausdorff · ASD · F1',                     icon:'📐', color:'#a78bfa', ms:1400 },
+  { id:'store',      label:'Storing Results',        sub:'Image · Mask · All metrics keyed by UID',                   icon:'🔒', color:'#10b981', ms:1000 },
+];
+
+const rand=(a,b,d=4)=>+((Math.random()*(b-a)+a).toFixed(d));
+
+function buildPipelineResults(isBrain){
+  const isPatho = Math.random() > .5;
+  const segType = isBrain ? (isPatho ? 'Brain: Pathological' : 'Brain: Normal') : 'Spine';
+  const segClasses = isBrain
+    ? (isPatho ? {tumor:rand(.12,.35,3), edema:rand(.05,.18,3), necrosis:rand(.02,.08,3)}
+                : {csf:rand(.15,.28,3), gray_matter:rand(.35,.50,3), white_matter:rand(.30,.45,3)})
+    : {disc:rand(.20,.40,3), stenosis:rand(.08,.22,3), vertebrae:rand(.35,.55,3)};
+  return {
+    preprocess:{ denoise_level:rand(.85,.99), n4_bias_correction:rand(.90,.99), contrast_enhancement:rand(1.1,1.8,2), sharpness_score:rand(.72,.95), noise_reduction:`${rand(18,35,1)} dB`, snr:rand(22,40,2) },
+    classify:  { anatomy: isBrain?'Brain':'Spine', confidence:rand(.87,.99), model:'ResNet-50 Fine-tuned', cnn_prediction:isBrain?'Brain':'Spine' },
+    enhance:   { method: isBrain?'BraTS-pretrained Enhancer':'Classical + Hackathon-set', iterations:Math.floor(Math.random()*50)+20, enhancement_factor:rand(1.2,2.1,2), weights:isBrain?'brats_2023_best.pth':'classical_spine_v2.pkl' },
+    score:     { psnr:rand(28,42,2), ssim:rand(.85,.98), brisque:rand(8,25,2), niqe:rand(2.5,5.5,2), lpips:rand(.05,.18), selected_candidate:`candidate_${Math.floor(Math.random()*5)+1}` },
+    segment:   { type:segType, classes:segClasses, total_voxels:Math.floor(Math.random()*800000)+400000, segmented_voxels:Math.floor(Math.random()*300000)+100000 },
+    metrics:   { dice:rand(.82,.97), jaccard:rand(.75,.94), hausdorff:rand(2.1,8.5,2), asd:rand(.8,3.2,2), f1:rand(.84,.97), precision:rand(.82,.97), recall:rand(.85,.98) },
+  };
+}
+
+function startAnalysis(){
+  if(!state.selectedFile || state.pipelineRunning) return;
+  state.pipelineRunning = true;
+  document.getElementById('btn-analyze').classList.add('hidden');
+  document.getElementById('pipeline-card').classList.remove('hidden');
+  document.getElementById('result-placeholder').classList.remove('hidden');
+  document.getElementById('results-container').classList.add('hidden');
+
+  const isBrain = Math.random() > .35;
+  const results = buildPipelineResults(isBrain);
+  const stepsEl = document.getElementById('pipeline-steps');
+  stepsEl.innerHTML = '';
+
+  // Build step elements
+  STEPS.forEach(s=>{
+    const div = document.createElement('div');
+    div.id = `step-${s.id}`;
+    div.className = 'p-step pending';
+    div.innerHTML = `
+      <div class="step-ind" style="--step-c:${s.color}">
+        <div class="step-dot" style="background:var(--t3)"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-hdr"><span class="step-ico">${s.icon}</span><span class="step-lbl">${s.label}</span></div>
+        <div class="step-sub">${s.sub}</div>
+      </div>`;
+    stepsEl.appendChild(div);
+  });
+
+  let done = 0;
+  function runStep(idx){
+    if(idx >= STEPS.length){ finishPipeline(results); return; }
+    const s = STEPS[idx];
+    const el = document.getElementById(`step-${s.id}`);
+    el.className = 'p-step running';
+    el.querySelector('.step-ind').innerHTML = `<div class="step-ring" style="--step-c:${s.color}"></div><div class="step-spinner" style="border-top-color:${s.color}"></div>`;
+    el.querySelector('.step-hdr').innerHTML += `<span class="step-badge sb-run">Processing...</span>`;
+    updateProgress(idx, false);
+
+    setTimeout(()=>{
+      // Mark done
+      el.className = 'p-step done';
+      el.querySelector('.step-ind').innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${s.color}" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+      el.querySelector('.step-hdr').innerHTML = el.querySelector('.step-hdr').innerHTML.replace(/<span class="step-badge sb-run">Processing\.\.\.<\/span>/,'')+'<span class="step-badge sb-done">Done</span>';
+      // Show result chips
+      const resultData = results[s.id];
+      if(resultData){
+        const chipsEl = document.createElement('div');
+        chipsEl.className = 'step-chips fade-in';
+        const entries = Object.entries(resultData).slice(0,3);
+        entries.forEach(([k,v])=>{
+          const c = document.createElement('span');
+          c.className = 'chip';
+          const fv = typeof v==='number' ? (v<1&&v>0?v.toFixed(3):v.toFixed(2)) : String(v);
+          c.innerHTML = `<span class="chip-k">${k.replace(/_/g,' ')}:</span><span class="chip-v">${fv}</span>`;
+          chipsEl.appendChild(c);
+        });
+        el.querySelector('.step-body').appendChild(chipsEl);
+      }
+      done++;
+      updateProgress(done, done===STEPS.length);
+      runStep(idx+1);
+    }, s.ms);
+  }
+
+  runStep(0);
+}
+
+function updateProgress(done, finished){
+  const pct = Math.round((done/STEPS.length)*100);
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-label').textContent = pct+'% complete';
+  if(finished){
+    document.getElementById('pipe-status-badge').className = 'badge b-green';
+    document.getElementById('pipe-status-badge').textContent = '✓ Complete';
+  }
+}
+
+function finishPipeline(results){
+  state.pipelineRunning = false;
+  state.analysisResult = results;
+  // Save to history
+  const record = {
+    id: 'r_'+Date.now(),
+    fileName: state.selectedFile.name,
+    fileSize: state.selectedFile.size,
+    analyzedAt: new Date().toISOString(),
+    anatomy: results.classify.anatomy,
+    segmentationType: results.segment.type,
+    metrics: results.metrics,
+    score: results.score,
+    preprocess: results.preprocess,
+    enhance: results.enhance,
+    imageUrl: state.selectedFile.type.startsWith('image/') ? URL.createObjectURL(state.selectedFile) : null,
+  };
+  state.historyRecords.unshift(record);
+  renderHistory();
+  // Render results
+  renderResults(results, record.imageUrl, state.selectedFile.name, (state.selectedFile.size/1024).toFixed(1)+' KB');
+  document.getElementById('btn-new').classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER RESULTS PANEL
+══════════════════════════════════════════════════════════ */
+function renderResults(r, imageUrl, fileName, fileSize){
+  document.getElementById('result-placeholder').classList.add('hidden');
+  const container = document.getElementById('results-container');
+  container.classList.remove('hidden');
+  container.innerHTML = buildResultsHTML(r, imageUrl, fileName, fileSize);
+  // Animate SVG gauges
+  requestAnimationFrame(()=>animateGauges());
+  // Activate first detail tab
+  setDetailTab('overview');
+}
+
+function buildResultsHTML(r, imageUrl, fileName, fileSize){
+  const isBrain = r.classify.anatomy === 'Brain';
+  const isPatho = r.segment.type.includes('Patho');
+  const isSpine = r.classify.anatomy === 'Spine';
+  const abClass = isSpine ? 'ab-amber' : isPatho ? 'ab-rose' : 'ab-cyan';
+  const abIcon = isSpine ? '🦴' : isPatho ? '⚠️' : '🧠';
+  const ts = new Date().toLocaleString();
+
+  return `
+  <!-- Output image section -->
+  <div class="out-section">
+    <div class="out-hdr">
+      <div>
+        <div class="out-title">Output Image</div>
+        <div class="out-sub">${fileName} · ${fileSize}</div>
+      </div>
+      <div class="out-badges">
+        <span class="abadge ${abClass}">${abIcon} ${r.segment.type}</span>
+        <span class="badge b-cyan">${(r.classify.confidence*100).toFixed(1)}% confidence</span>
+      </div>
+    </div>
+
+    <!-- Image Frame -->
+    <div class="img-frame">
+      ${imageUrl
+        ? `<img class="out-img" src="${imageUrl}" alt="MRI Output" />`
+        : `<div class="img-no-img"><svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width=".8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Non-image file — metadata analysis complete</span><span style="font-size:11px;color:var(--t3)">${fileName}</span></div>`
+      }
+      <div class="img-tag tl"><span>Enhanced</span></div>
+      <div class="img-tag tr"><span>${r.classify.anatomy}</span></div>
+      <div class="img-tag bl"><span>PSNR: ${r.score.psnr.toFixed(1)} dB</span></div>
+      <div class="img-tag br"><span>SSIM: ${r.score.ssim.toFixed(3)}</span></div>
+    </div>
+
+    <!-- Gauges -->
+    <div class="gauges-row">
+      ${buildGauge('SSIM', r.score.ssim, 1, '#00d4ff')}
+      ${buildGauge('Dice', r.metrics.dice, 1, '#10b981')}
+      ${buildGauge('F1', r.metrics.f1, 1, '#a78bfa')}
+      ${buildGauge('Recall', r.metrics.recall, 1, '#f59e0b')}
+    </div>
+
+    <div class="out-ts">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Analyzed at ${ts}
+    </div>
+  </div>
+
+  <!-- Detail section -->
+  <div class="det-section">
+    <div class="det-tabs">
+      ${['overview','preprocess','enhancement','quality','segmentation','metrics'].map(t=>`
+        <button class="det-tab ${t==='overview'?'active':''}" onclick="setDetailTab('${t}')" id="dtab-${t}">
+          ${{overview:'📋 Overview',preprocess:'⚙️ Preprocess',enhancement:'✨ Enhancement',quality:'📊 Quality',segmentation:'🔬 Segmentation',metrics:'📐 Metrics'}[t]}
+        </button>`).join('')}
+    </div>
+    <div class="det-content" id="det-content">
+      ${buildTabContent('overview', r, isBrain, isPatho, fileName, fileSize)}
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="res-actions">
+    <button class="btn-sm btn-ghost-sm" onclick="switchTab('history')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      View History
+    </button>
+    <button class="btn-sm btn-prim-sm" onclick="exportReport()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export Report
+    </button>
+  </div>
+  `;
+}
+
+function buildGauge(label, value, max, color){
+  const r=27, circ=2*Math.PI*r, pct=Math.min(value/max,1);
+  const offset = circ*(1-pct);
+  return `
+  <div class="gauge-wrap">
+    <div class="gauge-svg">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="5"/>
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+          stroke-dasharray="${circ}" stroke-dashoffset="${circ}"
+          stroke-linecap="round" transform="rotate(-90 32 32)"
+          data-target-offset="${offset}" data-start-offset="${circ}"
+          class="gauge-circle-fill"/>
+      </svg>
+      <div class="gauge-val" style="color:${color}">${value<1?value.toFixed(2):value.toFixed(1)}</div>
+    </div>
+    <div class="gauge-lbl">${label}</div>
+  </div>`;
+}
+
+function animateGauges(){
+  document.querySelectorAll('.gauge-circle-fill').forEach(el=>{
+    const start = parseFloat(el.dataset.startOffset);
+    const end = parseFloat(el.dataset.targetOffset);
+    const dur = 1000, startT = performance.now();
+    function step(now){
+      const t = Math.min((now-startT)/dur,1);
+      const ease = 1-Math.pow(1-t,3);
+      el.setAttribute('stroke-dashoffset', start + (end-start)*ease);
+      if(t<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+/* ── Detail tab content builder ── */
+let currentResult = null;
+function setDetailTab(tab){
+  document.querySelectorAll('.det-tab').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById(`dtab-${tab}`);
+  if(btn) btn.classList.add('active');
+  const r = state.analysisResult;
+  if(!r) return;
+  const isBrain = r.classify.anatomy === 'Brain';
+  document.getElementById('det-content').innerHTML = buildTabContent(tab, r, isBrain, r.segment.type.includes('Patho'), '', '');
+  requestAnimationFrame(animateBars);
+}
+
+function animateBars(){
+  document.querySelectorAll('.mbar-fill[data-target-w]').forEach(el=>{
+    const target = el.dataset.targetW;
+    setTimeout(()=>{ el.style.width = target; }, 50);
+  });
+}
+
+function buildTabContent(tab, r, isBrain, isPatho, fileName, fileSize){
+  if(tab==='overview') return `
+    <div class="igrid">
+      <div class="iitem"><div class="ikey">Anatomy</div><div class="ival" style="color:var(--cyan)">${r.classify.anatomy}</div></div>
+      <div class="iitem"><div class="ikey">Confidence</div><div class="ival" style="color:var(--green)">${(r.classify.confidence*100).toFixed(2)}%</div></div>
+      <div class="iitem"><div class="ikey">CNN Model</div><div class="ival">${r.classify.model}</div></div>
+      <div class="iitem"><div class="ikey">Segmentation</div><div class="ival">${r.segment.type}</div></div>
+      <div class="iitem"><div class="ikey">Total Voxels</div><div class="ival">${r.segment.total_voxels?.toLocaleString()}</div></div>
+      <div class="iitem"><div class="ikey">Candidate</div><div class="ival" style="color:var(--purpll)">${r.score.selected_candidate}</div></div>
+      <div class="iitem"><div class="ikey">PSNR</div><div class="ival" style="color:var(--cyan)">${r.score.psnr.toFixed(2)} dB</div></div>
+      <div class="iitem"><div class="ikey">SSIM</div><div class="ival" style="color:var(--green)">${r.score.ssim.toFixed(4)}</div></div>
+    </div>`;
+
+  if(tab==='preprocess') return `
+    <div class="shdr"><span class="shdr-ico">⚙️</span><span class="shdr-title">Preprocessing Results</span><span class="badge b-green">Complete</span></div>
+    <div class="mlist">
+      ${mrow('Denoise Level', r.preprocess.denoise_level, '', '#00d4ff', 1)}
+      ${mrow('N4 Bias Correction', r.preprocess.n4_bias_correction, '', '#a78bfa', 1)}
+      ${mrow('Contrast Enhancement', r.preprocess.contrast_enhancement, '', '#f59e0b', 2)}
+      ${mrow('Sharpness Score', r.preprocess.sharpness_score, '', '#3b82f6', 1)}
+      ${mrow('Noise Reduction', r.preprocess.noise_reduction, '', '#10b981', 0, false)}
+      ${mrow('SNR', r.preprocess.snr, 'dB', '#00d4ff', 0, false)}
+    </div>`;
+
+  if(tab==='enhancement') return `
+    <div class="shdr"><span class="shdr-ico">✨</span><span class="shdr-title">Enhancement Details</span><span class="badge ${isBrain?'b-cyan':'b-amber'}">${isBrain?'BraTS':'Classical'}</span></div>
+    <div class="mlist">
+      ${mrow('Method', r.enhance.method, '', '#00d4ff', 0, false)}
+      ${mrow('Iterations', r.enhance.iterations, '', '#a78bfa', 0, false)}
+      ${mrow('Enhancement Factor', r.enhance.enhancement_factor, '', '#f59e0b', 3)}
+      ${mrow('Weights File', r.enhance.weights, '', '#10b981', 0, false)}
+    </div>
+    <div class="enhance-note">${isBrain ? '🧠 BraTS-pretrained enhancer applied — optimized for brain tissue contrast and tumor boundary delineation.' : '🦴 Classical + hackathon-set enhancer applied — optimized for spinal disc and vertebrae visibility.'}</div>`;
+
+  if(tab==='quality') return `
+    <div class="shdr"><span class="shdr-ico">📊</span><span class="shdr-title">Image Quality Assessment</span><span class="badge b-blue">IQA</span></div>
+    <div class="qgrid">
+      <div class="qcard"><div class="qval" style="color:var(--cyan)">${r.score.psnr.toFixed(2)}</div><div class="qlbl">PSNR (dB)</div><div class="qdesc">Peak Signal-to-Noise Ratio. Higher = better.</div></div>
+      <div class="qcard"><div class="qval" style="color:var(--green)">${r.score.ssim.toFixed(4)}</div><div class="qlbl">SSIM</div><div class="qdesc">Structural Similarity Index. Closer to 1 = better.</div></div>
+      <div class="qcard"><div class="qval" style="color:var(--purpll)">${r.score.brisque.toFixed(2)}</div><div class="qlbl">BRISQUE</div><div class="qdesc">Blind/Referenceless. Lower = better quality.</div></div>
+      <div class="qcard"><div class="qval" style="color:var(--amber)">${r.score.niqe.toFixed(3)}</div><div class="qlbl">NIQE</div><div class="qdesc">Natural Image Quality. Lower = more natural.</div></div>
+      <div class="qcard"><div class="qval" style="color:var(--rose)">${r.score.lpips.toFixed(4)}</div><div class="qlbl">LPIPS</div><div class="qdesc">Perceptual similarity. Lower = more similar.</div></div>
+      <div class="qcard" style="border-color:rgba(0,212,255,.25);background:rgba(0,212,255,.04)"><div class="qval" style="color:var(--cyan);font-size:14px">${r.score.selected_candidate}</div><div class="qlbl">Best Candidate</div><div class="qdesc">Highest-scoring enhancement chosen.</div></div>
+    </div>`;
+
+  if(tab==='segmentation') return `
+    <div class="shdr"><span class="shdr-ico">🔬</span><span class="shdr-title">Segmentation Results</span><span class="badge ${isPatho?'b-rose':r.classify.anatomy==='Spine'?'b-amber':'b-cyan'}">${r.segment.type}</span></div>
+    <div class="seg-stats">
+      <div class="sstat"><div class="sstat-v" style="color:var(--cyan)">${r.segment.total_voxels?.toLocaleString()}</div><div class="sstat-l">Total Voxels</div></div>
+      <div class="sstat"><div class="sstat-v" style="color:var(--green)">${r.segment.segmented_voxels?.toLocaleString()}</div><div class="sstat-l">Segmented Voxels</div></div>
+      <div class="sstat"><div class="sstat-v" style="color:var(--purpll)">${((r.segment.segmented_voxels/r.segment.total_voxels)*100).toFixed(1)}%</div><div class="sstat-l">Coverage</div></div>
+    </div>
+    ${buildClassDist(r.segment.classes)}`;
+
+  if(tab==='metrics') {
+    const qual = r.metrics.dice>.9?'exc':r.metrics.dice>.8?'good':'fair';
+    const qualLabel = r.metrics.dice>.9?'🏆 Excellent':'✅ Good';
+    return `
+    <div class="shdr"><span class="shdr-ico">📐</span><span class="shdr-title">Segmentation Metrics</span><span class="badge b-purple">Dice · Jaccard · Hausdorff</span></div>
+    <div class="mlist">
+      ${mrow('Dice Score', r.metrics.dice, '', '#00d4ff', 1)}
+      ${mrow('Jaccard Index (IoU)', r.metrics.jaccard, '', '#10b981', 1)}
+      ${mrow('Hausdorff Distance', r.metrics.hausdorff, 'mm', '#f59e0b', 0, false)}
+      ${mrow('Avg. Surface Distance', r.metrics.asd, 'mm', '#a78bfa', 0, false)}
+      ${mrow('F1 Score', r.metrics.f1, '', '#3b82f6', 1)}
+      ${mrow('Precision', r.metrics.precision, '', '#00d4ff', 1)}
+      ${mrow('Recall', r.metrics.recall, '', '#10b981', 1)}
+    </div>
+    <div class="msummary"><span class="msum-chip msc-${qual}">${qualLabel} segmentation quality</span></div>`;
+  }
+  return '';
+}
+
+function mrow(label, val, unit, color, maxOrFalse, hasBar=true){
+  const isNum = typeof val === 'number';
+  const fval = isNum ? (val<1&&val>0?val.toFixed(4):val.toFixed(2)) : val;
+  const pct = (isNum && hasBar && maxOrFalse>0) ? Math.min((val/maxOrFalse)*100,100) : 0;
+  return `
+  <div class="mrow">
+    <span class="mrow-lbl">${label}</span>
+    <div class="mrow-right">
+      ${(isNum&&hasBar&&pct>0) ? `<div class="mbar"><div class="mbar-fill" data-target-w="${pct}%" style="width:0%;background:${color};transition:width .8s ease"></div></div>` : ''}
+      <span class="mval" style="color:${color}">${fval}${unit?`<span class="mu"> ${unit}</span>`:''}  </span>
+    </div>
+  </div>`;
+}
+
+function buildClassDist(classes){
+  const palette = ['#00d4ff','#a78bfa','#10b981','#f59e0b','#f43f5e'];
+  const entries = Object.entries(classes);
+  const total = entries.reduce((a,[,v])=>a+v,0);
+  const bars = entries.map(([k,v],i)=>`<div class="class-seg" style="width:${(v/total*100).toFixed(1)}%;background:${palette[i%palette.length]}"></div>`).join('');
+  const legends = entries.map(([k,v],i)=>`<div class="cleg"><div class="cleg-dot" style="background:${palette[i%palette.length]}"></div><span class="cleg-k">${k.replace(/_/g,' ')}</span><span class="cleg-v">${(v*100).toFixed(1)}%</span></div>`).join('');
+  return `<div style="margin-top:12px"><div class="ikey" style="margin-bottom:9px">Class Distribution</div><div class="class-bar-track">${bars}</div><div class="class-legend">${legends}</div></div>`;
+}
+
+function exportReport(){
+  const data = JSON.stringify(state.analysisResult, null, 2);
+  const blob = new Blob([data],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`omnishield_report_${Date.now()}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* ══════════════════════════════════════════════════════════
+   HISTORY
+══════════════════════════════════════════════════════════ */
+function generateMockHistory(){
+  const types = [
+    {anatomy:'Brain',seg:'Brain: Normal'},
+    {anatomy:'Spine',seg:'Spine'},
+    {anatomy:'Brain',seg:'Brain: Pathological'},
+  ];
+  return Array.from({length:9},(_,i)=>{
+    const t = types[i%3];
+    return {
+      id:'demo_'+i,
+      fileName:`mri_scan_${String(i+1).padStart(3,'0')}.nii.gz`,
+      fileSize:Math.floor(Math.random()*2000000)+500000,
+      analyzedAt: new Date(Date.now()-i*86400000*2).toISOString(),
+      anatomy:t.anatomy, segmentationType:t.seg,
+      imageUrl:null,
+      metrics:{dice:rand(.82,.97),jaccard:rand(.75,.94),hausdorff:rand(2.1,8.5,2),asd:rand(.8,3.2,2),f1:rand(.84,.97),precision:rand(.82,.97),recall:rand(.85,.98)},
+      score:{psnr:rand(28,42,2),ssim:rand(.85,.98),brisque:rand(8,25,2),niqe:rand(2.5,5.5,2),lpips:rand(.05,.18),selected_candidate:'candidate_'+Math.ceil(Math.random()*5)},
+      preprocess:{denoise_level:rand(.85,.99),n4_bias_correction:rand(.90,.99),contrast_enhancement:rand(1.1,1.8,2),sharpness_score:rand(.72,.95),noise_reduction:`${rand(18,35,1)} dB`,snr:rand(22,40,2)},
+      enhance:{method:t.anatomy==='Brain'?'BraTS-pretrained Enhancer':'Classical + Hackathon-set',iterations:Math.floor(Math.random()*50)+20,enhancement_factor:rand(1.2,2.1,2)},
+    };
+  });
+}
+
+function filterHistory(filter, btn){
+  state.historyFilter = filter;
+  state.selectedHistoryId = null;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHistory();
+}
+
+function renderHistory(){
+  const records = state.historyFilter==='all'
+    ? state.historyRecords
+    : state.historyRecords.filter(r=>r.anatomy.toLowerCase()===state.historyFilter);
+
+  document.getElementById('hist-count').textContent = `${state.historyRecords.length} scan${state.historyRecords.length!==1?'s':''} analyzed`;
+  const grid = document.getElementById('hist-grid');
+  const body = document.getElementById('hist-body');
+
+  // Remove drawer if exists
+  const existing = document.getElementById('hist-drawer');
+  if(existing) existing.remove();
+  body.classList.remove('with-drawer');
+  state.selectedHistoryId = null;
+
+  if(records.length===0){
+    grid.innerHTML = `<div class="hist-empty"><svg width="55" height="55" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9" style="opacity:.4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><h3>No analyses yet</h3><p>${state.historyFilter!=='all'?`No ${state.historyFilter} scans found.`:'Upload and analyze your first MRI scan.'}</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = records.map(rec=>{
+    const isSpine = rec.anatomy==='Spine', isPatho = rec.segmentationType?.includes('Patho');
+    const bClass = isSpine?'b-amber':isPatho?'b-rose':'b-cyan';
+    const bIcon = isSpine?'🦴':isPatho?'⚠️':'🧠';
+    const date = new Date(rec.analyzedAt).toLocaleDateString();
+    return `
+    <div class="hcard" id="hc-${rec.id}" onclick="selectHistory('${rec.id}')">
+      <div class="hc-hdr"><span class="badge ${bClass}">${bIcon} ${rec.anatomy}</span><span class="hc-date">${date}</span></div>
+      <div class="hc-name">${rec.fileName}</div>
+      <div class="hc-type">${rec.segmentationType}</div>
+      ${rec.metrics ? `<div class="hc-mets">
+        <div class="hm"><div class="hm-l">Dice</div><div class="hm-v" style="color:var(--cyan)">${rec.metrics.dice?.toFixed(3)}</div></div>
+        <div class="hm"><div class="hm-l">F1</div><div class="hm-v" style="color:var(--green)">${rec.metrics.f1?.toFixed(3)}</div></div>
+        <div class="hm"><div class="hm-l">SSIM</div><div class="hm-v" style="color:var(--purpll)">${rec.score?.ssim?.toFixed(3)}</div></div>
+      </div>` : ''}
+      <div class="hc-footer" id="hcf-${rec.id}">View Details →</div>
+    </div>`;
+  }).join('');
+}
+
+function selectHistory(id){
+  const prev = state.selectedHistoryId;
+  if(prev){
+    document.getElementById('hc-'+prev)?.classList.remove('selected');
+    document.getElementById('hcf-'+prev)?.classList.remove('sel');
+    document.getElementById('hcf-'+prev) && (document.getElementById('hcf-'+prev).textContent='View Details →');
+  }
+  if(prev===id){
+    state.selectedHistoryId = null;
+    document.getElementById('hist-drawer')?.remove();
+    document.getElementById('hist-body').classList.remove('with-drawer');
+    return;
+  }
+  state.selectedHistoryId = id;
+  document.getElementById('hc-'+id).classList.add('selected');
+  const footer = document.getElementById('hcf-'+id);
+  if(footer){ footer.classList.add('sel'); footer.textContent='✓ Viewing'; }
+
+  const rec = state.historyRecords.find(r=>r.id===id);
+  if(!rec) return;
+  const body = document.getElementById('hist-body');
+  body.classList.add('with-drawer');
+  const old = document.getElementById('hist-drawer');
+  if(old) old.remove();
+  const drawer = document.createElement('div');
+  drawer.id = 'hist-drawer';
+  drawer.className = 'drawer';
+  drawer.innerHTML = buildDrawerHTML(rec);
+  body.appendChild(drawer);
+}
+
+function buildDrawerHTML(rec){
+  const buildSection = (title, obj, colorFn) => {
+    if(!obj) return '';
+    const items = Object.entries(obj).map(([k,v])=>{
+      const fv = typeof v==='number'?(v<1&&v>0?v.toFixed(4):v.toFixed(2)):v;
+      const unit = (k==='hausdorff'||k==='asd')?' mm':(k==='psnr'?' dB':'');
+      return `<div class="dr-item"><div class="dr-key">${k.replace(/_/g,' ')}</div><div class="dr-val" style="color:${colorFn(k)}">${fv}${unit}</div></div>`;
+    }).join('');
+    return `<div class="dr-sec"><div class="dr-sec-title">${title}</div><div class="dr-grid">${items}</div></div>`;
+  };
+  const metColor = k => (['dice','jaccard','f1','precision','recall'].includes(k)?'var(--cyan)':k==='hausdorff'||k==='asd'?'var(--amber)':'var(--t1)');
+  const scoreColor = k => k==='psnr'?'var(--cyan)':k==='ssim'?'var(--green)':k==='brisque'||k==='niqe'||k==='lpips'?'var(--purpll)':'var(--t1)';
+  const ppColor = () => 'var(--t2)';
+  const date = new Date(rec.analyzedAt).toLocaleString();
+
+  return `
+  <div class="dr-hdr">
+    <div><div class="dr-title">Scan Details</div><div class="dr-sub">${rec.fileName}</div></div>
+    <button class="btn-sm btn-ghost-sm" onclick="selectHistory('${rec.id}')">✕</button>
+  </div>
+  <div class="dr-body">
+    <div class="dr-sec">
+      <div class="dr-sec-title">Overview</div>
+      <div class="dr-grid">
+        <div class="dr-item"><div class="dr-key">Anatomy</div><div class="dr-val" style="color:var(--cyan)">${rec.anatomy}</div></div>
+        <div class="dr-item"><div class="dr-key">Type</div><div class="dr-val">${rec.segmentationType}</div></div>
+        <div class="dr-item"><div class="dr-key">File Size</div><div class="dr-val">${(rec.fileSize/1024).toFixed(1)} KB</div></div>
+        <div class="dr-item"><div class="dr-key">Date</div><div class="dr-val" style="font-size:10px">${date}</div></div>
+      </div>
+    </div>
+    ${buildSection('Segmentation Metrics', rec.metrics, metColor)}
+    ${buildSection('Quality Scores (IQA)', rec.score, scoreColor)}
+    ${buildSection('Preprocessing', rec.preprocess, ppColor)}
+  </div>`;
+}
+</script>
+</body>
+</html>

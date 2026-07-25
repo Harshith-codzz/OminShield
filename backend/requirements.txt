@@ -1,0 +1,17 @@
+torch
+torchvision
+monai
+nibabel
+SimpleITK
+opencv-python
+scikit-image
+scikit-learn
+numpy
+pandas
+matplotlib
+fastapi
+uvicorn
+pydantic
+python-multipart
+sewar
+lpips
